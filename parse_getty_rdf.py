@@ -1,35 +1,33 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-""" facet decade in python """
+""" parse RDF into db """
 from __future__ import unicode_literals
 import sys
 import argparse
-import re
-from datetime import date
-import itertools
-import json
-import rdflib
-import itertools
-from rdflib.serializer import Serializer
-from pprint import pprint as pp
+import os
+import zipfile
+from rdflib import ConjunctiveGraph
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument('string', nargs="+")
 
     if argv is None:
         argv = parser.parse_args()
 
-    graph = rdflib.Graph('Sleepycat')
+    graph = ConjunctiveGraph('Sleepycat')
     graph.open("store", create=True)
-    graph.parse(argv.string[0], format="nt")
 
-    for ____, statements in itertools.groupby(graph, lambda g: g[0]):
-        sub_graph = rdflib.Graph()
-        for statement in statements:
-            sub_graph.add(statement)
-        print(sub_graph.serialize(format='json-ld', context="./context.json", indent=4))
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+
+    for sd in ['aat', 'tgn', 'ulan']:
+        data = os.path.join(this_dir, sd, 'explicit.zip')
+        print(data)
+        zf = zipfile.ZipFile(data, 'r')
+        for nt in zf.namelist():
+            print(nt)
+            graph.parse(zf.open(nt, 'r'), format="nt")
+    graph.close()
 
 
 # main() idiom for importing into REPL for debugging
