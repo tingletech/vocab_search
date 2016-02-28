@@ -1,0 +1,23 @@
+{
+  "name": "vocab_search",
+  "version": "1.0.0",
+  "description": "just setting this up for gulp right now",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tingletech/vocab_search.git"
+  },
+  "author": "Regents of the University of California",
+  "license": "BSD-3-Clause",
+  "bugs": {
+    "url": "https://github.com/tingletech/vocab_search/issues"
+  },
+  "homepage": "https://github.com/tingletech/vocab_search#readme",
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-gh-pages": "^0.5.4"
+  }
+}
