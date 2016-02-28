@@ -21,7 +21,7 @@ def main(argv=None):
         argv = parser.parse_args()
 
     graph = ConjunctiveGraph('Sleepycat')
-    graph.open("store", create=False)
+    graph.open("store-bu", create=False)
 
     # there must be a beter way?? I want to iterate over all subjects...
     for subject, statements in itertools.groupby(graph, lambda g: g[0]):
@@ -32,50 +32,54 @@ def main(argv=None):
         # Should be some way
         # to check but damned if I can figure it out
         types_we_want = [
-            'http://vocab.getty.edu/ontology#AdminPlaceConcept',
-            'http://vocab.getty.edu/ontology#Concept',
-            'http://vocab.getty.edu/ontology#GroupConcept',
-            'http://vocab.getty.edu/ontology#PersonConcept',
-            'http://vocab.getty.edu/ontology#PhysAdminPlaceConcept',
-            'http://vocab.getty.edu/ontology#PhysPlaceConcept',
-            'http://vocab.getty.edu/ontology#UnknownPersonConcept',
+            GVP.AdminPlaceContent,
+            GVP.Concept,
+            GVP.GroupConcept,
+            GVP.PersonConcept,
+            GVP.PhysAdminPlaceConcept,
+            GVP.PhysPlaceConcept,
+            GVP.UnknownPersonConcept,
         ]
-        if not resource.value(RDF.type) in types_we_want:
-            next
+        if (resource.value(RDF.type) is None):
+            pass
+        elif not(resource.value(RDF.type).identifier in types_we_want):
+            pass
+        else:
 
-        text_we_want = [
-            'http://vocab.getty.edu/ontology#prefLabelGVP',
-            'http://www.w3.org/2008/05/skos-xl#prefLabel',
-            'http://www.w3.org/2008/05/skos-xl#altLabel',
-        ]
+            text_we_want = [
+                'http://vocab.getty.edu/ontology#prefLabelGVP',
+                'http://www.w3.org/2008/05/skos-xl#prefLabel',
+                'http://www.w3.org/2008/05/skos-xl#altLabel',
+            ]
 
-        values_we_want = [
-            'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
-        ] + text_we_want
+            values_we_want = [
+                'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
+            ] + text_we_want
 
-        # create a sub graph, just for the current resource/subject
-        sub_graph = Graph()
-        # loop over all statements about subject
-        for s, p, o in statements:
-            predicate = p.decode()
-            if predicate in values_we_want:  # the stuff we want
-                sub_graph.add((s, p, o))
-                # we want the full text from these
-                if predicate in text_we_want:
-                    for inner_p, inner_o in graph.predicate_objects(subject=o):
-                        if (
-                            # type and part of speech look interesting
-                            inner_p in [GVP.termType, GVP.termPOS] or
-                            # any literal values
-                            type(inner_o) == rdflib.term.Literal
-                        ):
-                            sub_graph.add((o, inner_p, inner_o))
-        sub_graph.serialize(
-            os.path.join('out', '{0}.json'.format(s.md5_term_hash())),
-            format='json-ld',
-            context="./context.json",
-            indent=4
-        )
+            # create a sub graph, just for the current resource/subject
+            sub_graph = Graph()
+            # loop over all statements about subject
+            for s, p, o in statements:
+                predicate = p.decode()
+                if predicate in values_we_want:  # the stuff we want
+                    sub_graph.add((s, p, o))
+                    # we want the full text from these
+                    if predicate in text_we_want:
+                        for inner_p, inner_o in graph.predicate_objects(subject=o):
+                            if (
+                                # type and part of speech look interesting
+                                inner_p in [GVP.termType, GVP.termPOS] or
+                                # any literal values
+                                type(inner_o) == rdflib.term.Literal
+                            ):
+                                sub_graph.add((o, inner_p, inner_o))
+            sub_graph.serialize(
+                os.path.join('out', '{0}.json'.format(s.md5_term_hash())),
+                format='json-ld',
+                context="./context.json",
+                indent=4
+            )
+    graph.close()
 
 
 # main() idiom for importing into REPL for debugging
