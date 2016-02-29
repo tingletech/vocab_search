@@ -1,4 +1,5 @@
 {
   "@context": "http://tingletech.github.io/vocab_search/context.json",
-  "@type": "http://vocab.getty.edu/ontology#Concept"
+  "@type": {},
+  "http://vocab.getty.edu/ontology#prefLabelGVP": { }
 }
