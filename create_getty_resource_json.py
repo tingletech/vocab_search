@@ -75,13 +75,16 @@ def main(argv=None):
                             ):
                                 sub_graph.add((o, inner_p, inner_o))
             # re-frame the json per template frame
-            framed = jsonld.frame(
-                json.loads(sub_graph.serialize(format='json-ld')),
-                'http://tingletech.github.io/vocab_search/frame.json',
-            )
-            # force the context compaction with embeded context
             c = json.loads(open(os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                              'dist/context.json')).read())
+            framed = jsonld.frame(
+                json.loads(sub_graph.serialize(format='json-ld')),
+                {
+                    "@context": c,
+                    "@type": "http://vocab.getty.edu/ontology#Concept"
+                },
+            )
+            # force the context compaction with embeded context
             compacted = jsonld.compact(framed, c)
             # put back context reference for index artifact
             compacted['@context'] = 'http://tingletech.github.io/vocab_search/context.json'
