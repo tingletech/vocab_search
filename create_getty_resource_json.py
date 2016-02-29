@@ -81,7 +81,8 @@ def main(argv=None):
                 json.loads(sub_graph.serialize(format='json-ld')),
                 {
                     "@context": c,
-                    "@type": "http://vocab.getty.edu/ontology#Concept"
+                    "@type": {},
+                    "http://vocab.getty.edu/ontology#prefLabelGVP": { },
                 },
             )
             # force the context compaction with embeded context
