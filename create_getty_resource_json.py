@@ -10,9 +10,10 @@ import os
 from rdflib import ConjunctiveGraph, Namespace, Graph
 from rdflib.resource import Resource
 from rdflib.namespace import RDF
+from pyld import jsonld
+import json
 
 GVP = Namespace('http://vocab.getty.edu/ontology#')
-
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
@@ -21,7 +22,7 @@ def main(argv=None):
         argv = parser.parse_args()
 
     graph = ConjunctiveGraph('Sleepycat')
-    graph.open("store-bu", create=False)
+    graph.open("store-bu2", create=False)
 
     # there must be a beter way?? I want to iterate over all subjects...
     for subject, statements in itertools.groupby(graph, lambda g: g[0]):
@@ -73,12 +74,22 @@ def main(argv=None):
                                 type(inner_o) == rdflib.term.Literal
                             ):
                                 sub_graph.add((o, inner_p, inner_o))
-            sub_graph.serialize(
-                os.path.join('out', '{0}.json'.format(s.md5_term_hash())),
-                format='json-ld',
-                context="./context.json",
-                indent=4
+            # re-frame the json per template frame
+            framed = jsonld.frame(
+                json.loads(sub_graph.serialize(format='json-ld')),
+                'http://tingletech.github.io/vocab_search/frame.json',
             )
+            # force the context compaction with embeded context
+            c = json.loads(open(os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                             'dist/context.json')).read())
+            compacted = jsonld.compact(framed, c)
+            # put back context reference for index artifact
+            compacted['@context'] = 'http://tingletech.github.io/vocab_search/context.json'
+            sub_graph.close()
+            sub_graph = None
+            outfile = os.path.join('out', '{0}.json'.format(s.md5_term_hash()))
+            with open(outfile, 'w') as f:
+                json.dump(compacted, f, sort_keys=True, indent=2)
     graph.close()
 
 
