@@ -98,18 +98,25 @@ def main(argv=None):
                 lid = compacted['gvp:prefLabelGVP']['@id']
                 lables = compacted['skosxl:prefLabel']
                 #pp(lables)
-                compacted['gvp:prefLabelGVP'] = [x['skosxl:literalForm']['@value'] for x in lables if x['@id'] == lid][0]
+                compacted['gvp:prefLabelGVP'] = [grok(x['skosxl:literalForm']) for x in lables if x['@id'] == lid][0]
             if 'skosxl:altLabel' in compacted:
-                for i, x in enumerate(compacted['skosxl:altLabel']):
-                    compacted['skosxl:altLabel'][i] = x['skosxl:literalForm']['@value']
+                ls = [grok(x['skosxl:literalForm']) for x in compacted['skosxl:altLabel'] ]
+                compacted['skosxl:altLabel'] = ls
             if 'skosxl:prefLabel' in compacted:
-                for i, x in enumerate(compacted['skosxl:prefLabel']):
-                    compacted['skosxl:prefLabel'][i] = x['skosxl:literalForm']['@value']
+                ls = [grok(x['skosxl:literalForm']) for x in compacted['skosxl:prefLabel'] ]
+                compacted['skosxl:prefLabel'] = ls
             print(json.dumps(compacted, sort_keys=True, indent=2))
             #with open(outfile, 'w') as f:
                 #json.dump(compacted, f, sort_keys=True, indent=2)
             exit(1)
     graph.close()
+
+
+def grok(thing):
+    try:
+        return thing['@value']
+    except TypeError:
+        return unicode(thing)
 
 
 # main() idiom for importing into REPL for debugging
