@@ -90,25 +90,23 @@ def main(argv=None):
             from pprint import pprint as pp
             compacted = jsonld.compact(framed, c)
             # put back context reference for index artifact
-            compacted['@context'] = 'http://tingletech.github.io/vocab_search/context.json'
             sub_graph.close()
             sub_graph = None
-            outfile = os.path.join('out-cf', '{0}.json'.format(s.md5_term_hash()))
+            # shorten stuff more
+            del compacted['@context']
             if 'gvp:prefLabelGVP' in compacted:
                 lid = compacted['gvp:prefLabelGVP']['@id']
-                lables = compacted['skosxl:prefLabel']
-                #pp(lables)
+                lables = grok_a(compacted['skosxl:prefLabel'])
                 compacted['gvp:prefLabelGVP'] = [grok(x['skosxl:literalForm']) for x in lables if x['@id'] == lid][0]
             if 'skosxl:altLabel' in compacted:
-                ls = [grok(x['skosxl:literalForm']) for x in compacted['skosxl:altLabel'] ]
+                ls = [grok(x['skosxl:literalForm']) for x in grok_a(compacted['skosxl:altLabel']) ]
                 compacted['skosxl:altLabel'] = ls
             if 'skosxl:prefLabel' in compacted:
-                ls = [grok(x['skosxl:literalForm']) for x in compacted['skosxl:prefLabel'] ]
+                ls = [grok(x['skosxl:literalForm']) for x in grok_a(compacted['skosxl:prefLabel']) ]
                 compacted['skosxl:prefLabel'] = ls
-            print(json.dumps(compacted, sort_keys=True, indent=2))
-            #with open(outfile, 'w') as f:
-                #json.dump(compacted, f, sort_keys=True, indent=2)
-            exit(1)
+            outfile = os.path.join('out-cf', '{0}.json'.format(s.md5_term_hash()))
+            with open(outfile, 'w') as f:
+                json.dump(compacted, f, sort_keys=True, indent=2)
     graph.close()
 
 
@@ -117,6 +115,13 @@ def grok(thing):
         return thing['@value']
     except TypeError:
         return unicode(thing)
+
+
+def grok_a(thing):
+    if isinstance(thing, list):
+        return thing
+    else:
+        return [thing]
 
 
 # main() idiom for importing into REPL for debugging
