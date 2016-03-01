@@ -55,6 +55,7 @@ def main(argv=None):
 
             values_we_want = [
                 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
+                'http://vocab.getty.edu/ontology#parentString'
             ] + text_we_want
 
             # create a sub graph, just for the current resource/subject
@@ -86,14 +87,28 @@ def main(argv=None):
                 },
             )
             # force the context compaction with embeded context
+            from pprint import pprint as pp
             compacted = jsonld.compact(framed, c)
             # put back context reference for index artifact
             compacted['@context'] = 'http://tingletech.github.io/vocab_search/context.json'
             sub_graph.close()
             sub_graph = None
-            outfile = os.path.join('out', '{0}.json'.format(s.md5_term_hash()))
-            with open(outfile, 'w') as f:
-                json.dump(compacted, f, sort_keys=True, indent=2)
+            outfile = os.path.join('out-cf', '{0}.json'.format(s.md5_term_hash()))
+            if 'gvp:prefLabelGVP' in compacted:
+                lid = compacted['gvp:prefLabelGVP']['@id']
+                lables = compacted['skosxl:prefLabel']
+                #pp(lables)
+                compacted['gvp:prefLabelGVP'] = [x['skosxl:literalForm']['@value'] for x in lables if x['@id'] == lid][0]
+            if 'skosxl:altLabel' in compacted:
+                for i, x in enumerate(compacted['skosxl:altLabel']):
+                    compacted['skosxl:altLabel'][i] = x['skosxl:literalForm']['@value']
+            if 'skosxl:prefLabel' in compacted:
+                for i, x in enumerate(compacted['skosxl:prefLabel']):
+                    compacted['skosxl:prefLabel'][i] = x['skosxl:literalForm']['@value']
+            print(json.dumps(compacted, sort_keys=True, indent=2))
+            #with open(outfile, 'w') as f:
+                #json.dump(compacted, f, sort_keys=True, indent=2)
+            exit(1)
     graph.close()
 
 
