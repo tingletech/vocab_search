@@ -51,11 +51,12 @@ def main(argv=None):
                 'http://vocab.getty.edu/ontology#prefLabelGVP',
                 'http://www.w3.org/2008/05/skos-xl#prefLabel',
                 'http://www.w3.org/2008/05/skos-xl#altLabel',
+                'http://vocab.getty.edu/ontology#ScopeNote',
             ]
 
             values_we_want = [
                 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
-                'http://vocab.getty.edu/ontology#parentString'
+                'http://vocab.getty.edu/ontology#parentStringAbbrev',
             ] + text_we_want
 
             # create a sub graph, just for the current resource/subject
@@ -69,8 +70,7 @@ def main(argv=None):
                     if predicate in text_we_want:
                         for inner_p, inner_o in graph.predicate_objects(subject=o):
                             if (
-                                # type and part of speech look interesting
-                                inner_p in [GVP.termType, GVP.termPOS] or
+                                inner_p in [RDF.value] or
                                 # any literal values
                                 type(inner_o) == rdflib.term.Literal
                             ):
@@ -97,7 +97,12 @@ def main(argv=None):
             if 'gvp:prefLabelGVP' in compacted:
                 lid = compacted['gvp:prefLabelGVP']['@id']
                 lables = grok_a(compacted['skosxl:prefLabel'])
-                compacted['gvp:prefLabelGVP'] = [grok(x['skosxl:literalForm']) for x in lables if x['@id'] == lid][0]
+                try:
+                    compacted['gvp:prefLabelGVP'] = [grok(x['skosxl:literalForm']) for x in lables if x['@id'] == lid][0]
+                except IndexError:
+                    alts = grok_a(compacted['skosxl:altLabel'])
+                    compacted['gvp:prefLabelGVP'] = [grok(x['skosxl:literalForm']) for x in alts if x['@id'] == lid][0]
+                    print("found prefLabelGVP in altLabel {0}".format(lid))
             if 'skosxl:altLabel' in compacted:
                 ls = [grok(x['skosxl:literalForm']) for x in grok_a(compacted['skosxl:altLabel']) ]
                 compacted['skosxl:altLabel'] = ls
