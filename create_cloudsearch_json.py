@@ -7,6 +7,8 @@ import argparse
 import itertools
 import rdflib
 import os
+import re
+import hashlib
 from rdflib import ConjunctiveGraph, Namespace, Graph
 from rdflib.resource import Resource
 from rdflib.namespace import RDF
@@ -102,13 +104,24 @@ def main(argv=None):
                 except IndexError:
                     alts = grok_a(compacted['skosxl:altLabel'])
                     compacted['gvp:prefLabelGVP'] = [grok(x['skosxl:literalForm']) for x in alts if x['@id'] == lid][0]
-                    print("found prefLabelGVP in altLabel {0}".format(lid))
             if 'skosxl:altLabel' in compacted:
                 ls = [grok(x['skosxl:literalForm']) for x in grok_a(compacted['skosxl:altLabel']) ]
                 compacted['skosxl:altLabel'] = ls
             if 'skosxl:prefLabel' in compacted:
                 ls = [grok(x['skosxl:literalForm']) for x in grok_a(compacted['skosxl:prefLabel']) ]
                 compacted['skosxl:prefLabel'] = ls
+
+            uncurie = {}
+            uncurie['fields'] = {}
+            uncurie['type'] = 'add'
+            uncurie['id'] = ''
+            for key in compacted:
+                clean_key = re.sub(r'.*[:@]', '', key)
+                uncurie['fields'][clean_key] = compacted[key]
+
+            pp(uncurie)
+            exit(1)
+
             outfile = os.path.join('out-cf', '{0}.json'.format(s.md5_term_hash()))
             with open(outfile, 'w') as f:
                 json.dump(compacted, f, sort_keys=True, indent=2)
