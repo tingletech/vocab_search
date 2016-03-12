@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """ create json for indexing """
-from __future__ import unicode_literals
+from __future__ import unicode_literals, print_function
 import sys
 import argparse
 import itertools
@@ -14,6 +14,8 @@ from rdflib.resource import Resource
 from rdflib.namespace import RDF
 from pyld import jsonld
 import json
+import collections
+from pprint import pprint as pp
 
 GVP = Namespace('http://vocab.getty.edu/ontology#')
 
@@ -25,6 +27,8 @@ def main(argv=None):
 
     graph = ConjunctiveGraph('Sleepycat')
     graph.open("store-bu2", create=False)
+
+    batch_state = { 'page': 0, 'batch_file': None }
 
     # there must be a beter way?? I want to iterate over all subjects...
     for subject, statements in itertools.groupby(graph, lambda g: g[0]):
@@ -48,7 +52,6 @@ def main(argv=None):
         elif not(resource.value(RDF.type).identifier in types_we_want):
             pass
         else:
-
             text_we_want = [
                 'http://vocab.getty.edu/ontology#prefLabelGVP',
                 'http://www.w3.org/2008/05/skos-xl#prefLabel',
@@ -68,65 +71,81 @@ def main(argv=None):
                 predicate = p.decode()
                 if predicate in values_we_want:  # the stuff we want
                     sub_graph.add((s, p, o))
-                    # we want the full text from these
                     if predicate in text_we_want:
-                        for inner_p, inner_o in graph.predicate_objects(subject=o):
+                        inner_trip = graph[o]
+                        # gpo = graph.objects(subject=o, predicate=None)
+                        # gpo = graph.predicate_objects(subject=o)
+                        for inner_p, inner_o in inner_trip:
                             if (
                                 inner_p in [RDF.value] or
-                                # any literal values
+                                #any literal values
                                 type(inner_o) == rdflib.term.Literal
                             ):
                                 sub_graph.add((o, inner_p, inner_o))
             # re-frame the json per template frame
-            c = json.loads(open(os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                                             'dist/context.json')).read())
+            c = json.loads(open(os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                                'dist/context.json')).read()
+            )
+            f = json.loads(open(os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                                'dist/frame.json')).read()
+            )
             framed = jsonld.frame(
-                json.loads(sub_graph.serialize(format='json-ld')),
-                {
-                    "@context": c,
-                    "@type": {},
-                    "http://vocab.getty.edu/ontology#prefLabelGVP": { },
-                },
+                json.loads(sub_graph.serialize(format='json-ld')), f,
             )
             # force the context compaction with embeded context
-            from pprint import pprint as pp
             compacted = jsonld.compact(framed, c)
+       
             # put back context reference for index artifact
             sub_graph.close()
             sub_graph = None
             # shorten stuff more
             del compacted['@context']
-            if 'gvp:prefLabelGVP' in compacted:
-                lid = compacted['gvp:prefLabelGVP']['@id']
-                lables = grok_a(compacted['skosxl:prefLabel'])
+            if 'prefLabelGVP' in compacted:
+                lid = compacted['prefLabelGVP']['@id']
+                lables = grok_a(compacted['prefLabel'])
                 try:
-                    compacted['gvp:prefLabelGVP'] = [grok(x['skosxl:literalForm']) for x in lables if x['@id'] == lid][0]
+                    compacted['prefLabelGVP'] = [
+                        grok(x['skosxl:literalForm'])
+                        for x in lables if x['@id'] == lid
+                    ][0]
                 except IndexError:
-                    alts = grok_a(compacted['skosxl:altLabel'])
-                    compacted['gvp:prefLabelGVP'] = [grok(x['skosxl:literalForm']) for x in alts if x['@id'] == lid][0]
-            if 'skosxl:altLabel' in compacted:
-                ls = [grok(x['skosxl:literalForm']) for x in grok_a(compacted['skosxl:altLabel']) ]
-                compacted['skosxl:altLabel'] = ls
-            if 'skosxl:prefLabel' in compacted:
-                ls = [grok(x['skosxl:literalForm']) for x in grok_a(compacted['skosxl:prefLabel']) ]
-                compacted['skosxl:prefLabel'] = ls
+                    alts = grok_a(compacted['altLabel'])
+                    compacted['prefLabelGVP'] = [
+                        grok(x['skosxl:literalForm'])
+                        for x in alts if x['@id'] == lid
+                    ][0]
+            if 'altLabel' in compacted:
+                ls = [
+                    grok(x['skosxl:literalForm'])
+                    for x in grok_a(compacted['altLabel'])
+                ]
+                compacted['altLabel'] = ls
+            if 'prefLabel' in compacted:
+                ls = [
+                    grok(x['skosxl:literalForm'])
+                    for x in grok_a(compacted['prefLabel'])
+                ]
+                compacted['prefLabel'] = ls
 
-            uncurie = {}
-            uncurie['fields'] = {}
-            uncurie['type'] = 'add'
-            uncurie['id'] = ''
-            for key in compacted:
-                clean_key = re.sub(r'.*[:@]', '', key)
-                uncurie['fields'][clean_key] = compacted[key]
-
-            pp(uncurie)
-            exit(1)
-
-            outfile = os.path.join('out-cf', '{0}.json'.format(s.md5_term_hash()))
-            with open(outfile, 'w') as f:
-                json.dump(compacted, f, sort_keys=True, indent=2)
+            batchUpdate(batch_state, compacted)
+        resource = None
     graph.close()
 
+
+def batchUpdate(b, compacted):
+    if not b['batch_file']:
+        b['batch_file'] = open('batch{0}.json'.format(b['page']), 'w')
+        print('[', file=b['batch_file'], end="")
+    print(json.dumps(compacted), file=b['batch_file'], end="")
+    print(',', file=b['batch_file'])
+    b['page'] = b['page'] + 1
+    print(b['page'])
+    print(b['batch_file'].tell())
+    if b['batch_file'].tell() > 4500000:
+        exit(1)
+        
 
 def grok(thing):
     try:

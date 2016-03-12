@@ -1,4 +1,8 @@
 {
+  "prefLabelGVP": "http://vocab.getty.edu/ontology#prefLabelGVP",
+  "parent": "http://vocab.getty.edu/ontology#parentStringAbbrev",
+  "prefLabel": "http://www.w3.org/2008/05/skos-xl#prefLabel",
+  "altLabel": "http://www.w3.org/2008/05/skos-xl#altLabel",
   "adms": "http://www.w3.org/ns/adms#",
   "bibo": "http://purl.org/ontology/bibo/",
   "bio": "http://purl.org/vocab/bio/0.1/",
