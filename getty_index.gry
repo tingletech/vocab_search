@@ -1,0 +1,63 @@
+#!/usr/bin/env groovy
+@Grab(group='org.apache.jena', module='jena-core', version='3.0.1')
+import org.apache.jena.*
+@Grab(group='org.apache.jena', module='jena-tdb', version='3.0.1')
+import org.apache.jena.tdb.*
+import org.apache.jena.query.*
+
+@Grab('com.github.albaker:GroovySparql:0.9.0')
+
+import groovy.sparql.Sparql
+
+def prefix = """
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX gvp: <http://vocab.getty.edu/ontology#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+"""
+
+/*
+ create with `tdbloader2 --loc jena-test aat/* tgn/* ulan/*`
+*/
+directory = "jena-test"
+
+dataset = TDBFactory.createDataset(directory)
+tdb = dataset.getDefaultModel()
+
+def runQuery(queryString) {
+  query = QueryFactory.create(queryString) ;
+  qexec = QueryExecutionFactory.create(query, dataset) ;
+  results = qexec.execSelect() ;
+  results.each{ x ->
+    println "${x}"
+  }
+}
+
+/* # Concepts #
+SELECT ?subject WHERE {
+    ?subject rdfs:subClassOf gvp:Subject.
+    ?subject rdfs:subClassOf skos:Concept.
+} # http://vocab.getty.edu/sparql
+*/
+def concepts = [
+  'http://vocab.getty.edu/ontology#Concept',
+  'http://vocab.getty.edu/ontology#PhysPlaceConcept',
+  'http://vocab.getty.edu/ontology#AdminPlaceConcept',
+  'http://vocab.getty.edu/ontology#PhysAdminPlaceConcept',
+  'http://vocab.getty.edu/ontology#PersonConcept',
+  'http://vocab.getty.edu/ontology#GroupConcept',
+  'http://vocab.getty.edu/ontology#UnknownPersonConcept',
+]
+
+for (concept in concepts) {
+  def queryString = prefix + """
+  SELECT ?subject WHERE {
+      ?subject rdf:type <${concept}>.
+  }
+  """
+  runQuery(queryString)
+}
+
+
+tdb.close()
+dataset.close()
