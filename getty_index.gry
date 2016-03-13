@@ -24,12 +24,23 @@ directory = "jena-test"
 dataset = TDBFactory.createDataset(directory)
 tdb = dataset.getDefaultModel()
 
+/*
+*/
+
+def innerQuery(subject) {
+  def results = tdb.listStatements(subject.subject, null, null)
+  print results.getClass();
+  results.each{ x ->
+    println x.toString();
+  }
+}
+
 def runQuery(queryString) {
   query = QueryFactory.create(queryString) ;
   qexec = QueryExecutionFactory.create(query, dataset) ;
   results = qexec.execSelect() ;
   results.each{ x ->
-    println "${x}"
+    innerQuery(x);
   }
 }
 
@@ -50,12 +61,11 @@ def concepts = [
 ]
 
 for (concept in concepts) {
-  def queryString = prefix + """
-  SELECT ?subject WHERE {
+  runQuery(prefix + """
+    SELECT ?subject WHERE {
       ?subject rdf:type <${concept}>.
-  }
-  """
-  runQuery(queryString)
+    } LIMIT 1 """
+  )
 }
 
 
