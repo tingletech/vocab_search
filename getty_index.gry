@@ -1,9 +1,11 @@
 #!/usr/bin/env groovy
+import java.io.ByteArrayOutputStream
 @Grab(group='org.apache.jena', module='jena-core', version='3.0.1')
 import org.apache.jena.*
 @Grab(group='org.apache.jena', module='jena-tdb', version='3.0.1')
 import org.apache.jena.tdb.*
 import org.apache.jena.query.*
+import org.apache.jena.rdf.model.*
 
 @Grab('com.github.albaker:GroovySparql:0.9.0')
 
@@ -27,28 +29,49 @@ tdb = dataset.getDefaultModel()
 /*
 */
 
+def pluck(statements, new_graph) {
+  // statements is a jena.rdf.model.StmtIterator
+  // no return value; add statements to new_graph
+  statements.each { x->
+    new_graph.add(x)
+  }
+}
+
 def innerQuery(subject) {
-  def results = tdb.listStatements(subject.subject, null, null)
-  print results.getClass();
+  // subject is the URI of a concept
+  // looks up some info and returns a string of json-ld
+  graph_out = ModelFactory.createDefaultModel()
+  pluck(tdb.listStatements(subject, null, null), graph_out)
+  buffer = new ByteArrayOutputStream()
+  graph_out.write(buffer, 'JSON-LD')
+  return buffer.toString()
+}
+
+def runQuery(concept) {
+  // run SPARQL for this concept
+  // writes out multiple <5MB batch files
+  query = QueryFactory.create(prefix + """
+    SELECT ?subject WHERE {
+      ?subject rdf:type <${concept}>.
+    } LIMIT 1 """
+  )
+  qexec = QueryExecutionFactory.create(query, dataset)
+  results = qexec.execSelect()
   results.each{ x ->
-    println x.toString();
+    println innerQuery(x.subject)
   }
 }
 
-def runQuery(queryString) {
-  query = QueryFactory.create(queryString) ;
-  qexec = QueryExecutionFactory.create(query, dataset) ;
-  results = qexec.execSelect() ;
-  results.each{ x ->
-    innerQuery(x);
-  }
-}
-
-/* # Concepts #
-SELECT ?subject WHERE {
-    ?subject rdfs:subClassOf gvp:Subject.
-    ?subject rdfs:subClassOf skos:Concept.
-} # http://vocab.getty.edu/sparql
+/* Concepts -- I could not get this query to work on jena
+ * WHERE {
+ *   ?subject rdf:type gvp:Subject.
+ *   ?subject rdf:type skos:Concept. 
+ * }, so; beloew, I hardcoded the Concepts I want, got the 
+ * list by using this query: 
+ * SELECT ?subject WHERE {
+ *   ?subject rdfs:subClassOf gvp:Subject.
+ *   ?subject rdfs:subClassOf skos:Concept.
+ * } # http://vocab.getty.edu/sparql
 */
 def concepts = [
   'http://vocab.getty.edu/ontology#Concept',
@@ -61,11 +84,7 @@ def concepts = [
 ]
 
 for (concept in concepts) {
-  runQuery(prefix + """
-    SELECT ?subject WHERE {
-      ?subject rdf:type <${concept}>.
-    } LIMIT 1 """
-  )
+  runQuery(concept)
 }
 
 
