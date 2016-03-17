@@ -11,7 +11,7 @@ import org.apache.jena.rdf.model.*
 
 import groovy.sparql.Sparql
 
-def prefix = """
+prefix = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX gvp: <http://vocab.getty.edu/ontology#>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
@@ -32,8 +32,16 @@ tdb = dataset.getDefaultModel()
 def pluck(statements, new_graph) {
   // statements is a jena.rdf.model.StmtIterator
   // no return value; add statements to new_graph
-  statements.each { x->
+  for (x in statements) {
     new_graph.add(x)
+    // look deeper
+    obj = x.getObject()
+    if (obj in org.apache.jena.rdf.model.impl.ResourceImpl) {
+      deeper = tdb.listStatements(obj, null, null)
+      deeper.each { y ->
+        new_graph.add(y)
+      }
+    }
   }
 }
 
@@ -41,7 +49,10 @@ def innerQuery(subject) {
   // subject is the URI of a concept
   // looks up some info and returns a string of json-ld
   graph_out = ModelFactory.createDefaultModel()
-  pluck(tdb.listStatements(subject, null, null), graph_out)
+  predicates.each{ x->
+    pluck(tdb.listStatements(subject, x, null), graph_out)
+  }
+  // pluck(tdb.listStatements(subject, null, null), graph_out)
   buffer = new ByteArrayOutputStream()
   graph_out.write(buffer, 'JSON-LD')
   return buffer.toString()
@@ -81,6 +92,13 @@ def concepts = [
   'http://vocab.getty.edu/ontology#PersonConcept',
   'http://vocab.getty.edu/ontology#GroupConcept',
   'http://vocab.getty.edu/ontology#UnknownPersonConcept',
+]
+
+predicates = [
+  tdb.createProperty('http://vocab.getty.edu/ontology#prefLabelGVP'),
+  tdb.createProperty('http://www.w3.org/2008/05/skos-xl#prefLabel'),
+  tdb.createProperty('http://www.w3.org/2008/05/skos-xl#altLabel'),
+  tdb.createProperty('http://vocab.getty.edu/ontology#parentStringAbbrev'),
 ]
 
 for (concept in concepts) {
