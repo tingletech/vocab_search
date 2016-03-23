@@ -29,18 +29,24 @@ tdb = dataset.getDefaultModel()
 /*
 */
 
-def pluck(statements, new_graph) {
+def pluck(statements, out) {
   // statements is a jena.rdf.model.StmtIterator
   // no return value; add statements to new_graph
   for (x in statements) {
-    new_graph.add(x)
-    // look deeper
+    println(x.getPredicate())
     obj = x.getObject()
+    // new_graph.add(x)
+    // look deeper
     if (obj in org.apache.jena.rdf.model.impl.ResourceImpl) {
-      deeper = tdb.listStatements(obj, null, null)
-      deeper.each { y ->
-        new_graph.add(y)
+      sub_predicates.each{ xx->
+        deeper = tdb.listStatements(obj, xx, null)
+        deeper.each { y ->
+          println(y.getObject())
+        }
       }
+    }
+    if (obj in org.apache.jena.rdf.model.impl.LiteralImpl) {
+      println(obj)
     }
   }
 }
@@ -48,14 +54,16 @@ def pluck(statements, new_graph) {
 def innerQuery(subject) {
   // subject is the URI of a concept
   // looks up some info and returns a string of json-ld
+  result = new LinkedHashMap()
+  result.put('perf', [])
+  result.put('alt', [])
+  result.put('perfGVP', '')
+  result.put('parent', '')
   graph_out = ModelFactory.createDefaultModel()
   predicates.each{ x->
-    pluck(tdb.listStatements(subject, x, null), graph_out)
+    pluck(tdb.listStatements(subject, x, null), result)
   }
-  // pluck(tdb.listStatements(subject, null, null), graph_out)
-  buffer = new ByteArrayOutputStream()
-  graph_out.write(buffer, 'JSON-LD')
-  return buffer.toString()
+  return result
 }
 
 def runQuery(concept) {
@@ -99,6 +107,11 @@ predicates = [
   tdb.createProperty('http://www.w3.org/2008/05/skos-xl#prefLabel'),
   tdb.createProperty('http://www.w3.org/2008/05/skos-xl#altLabel'),
   tdb.createProperty('http://vocab.getty.edu/ontology#parentStringAbbrev'),
+]
+
+sub_predicates = [
+  tdb.createProperty('http://www.w3.org/2008/05/skos-xl#literalForm'),
+  tdb.createProperty('http://www.w3.org/2001/XMLSchema#string'),
 ]
 
 for (concept in concepts) {
