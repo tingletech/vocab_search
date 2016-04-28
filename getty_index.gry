@@ -62,13 +62,11 @@ def runQuery(concept) {
   query = QueryFactory.create(prefix + """
     SELECT ?subject WHERE {
       ?subject rdf:type <${concept}>.
-    } LIMIT 1 """
+    } """
   )
   qexec = QueryExecutionFactory.create(query, dataset)
   results = qexec.execSelect()
-  results.each{ x ->
-    println innerQuery(x.subject)
-  }
+  return results
 }
 
 /* Concepts -- I could not get this query to work on jena
@@ -105,9 +103,15 @@ sub_predicates = [
 ]
 
 for (concept in concepts) {
-  runQuery(concept)
+  results = runQuery(concept)
+  // open file
+  results.each{ x ->
+    println innerQuery(x.subject)
+    // append json to file
+    // check file size... if it is "full", close and open a new file
+  }
+  // close file
 }
-
 
 tdb.close()
 dataset.close()
