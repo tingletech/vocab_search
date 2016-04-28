@@ -7,10 +7,6 @@ import org.apache.jena.tdb.*
 import org.apache.jena.query.*
 import org.apache.jena.rdf.model.*
 
-@Grab('com.github.albaker:GroovySparql:0.9.0')
-
-import groovy.sparql.Sparql
-
 prefix = """
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX gvp: <http://vocab.getty.edu/ontology#>
@@ -20,46 +16,39 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
 /*
  create with `tdbloader2 --loc jena-test aat/* tgn/* ulan/*`
-*/
+ */
 directory = "jena-test"
 
 dataset = TDBFactory.createDataset(directory)
 tdb = dataset.getDefaultModel()
 
 /*
-*/
+ */
 
 def pluck(statements, out) {
   // statements is a jena.rdf.model.StmtIterator
   // no return value; add statements to new_graph
   for (x in statements) {
-    println(x.getPredicate())
     obj = x.getObject()
     // new_graph.add(x)
     // look deeper
-    if (obj in org.apache.jena.rdf.model.impl.ResourceImpl) {
+    if (obj in org.apache.jena.rdf.model.impl.LiteralImpl) {
+      out[x.getPredicate()] = obj
+    } else if (obj in org.apache.jena.rdf.model.impl.ResourceImpl) {
+      out[x.getPredicate()] = []
       sub_predicates.each{ xx->
         deeper = tdb.listStatements(obj, xx, null)
         deeper.each { y ->
-          println(y.getObject())
+          out[x.getPredicate()].push(y.getObject())
         }
       }
-    }
-    if (obj in org.apache.jena.rdf.model.impl.LiteralImpl) {
-      println(obj)
     }
   }
 }
 
 def innerQuery(subject) {
   // subject is the URI of a concept
-  // looks up some info and returns a string of json-ld
   result = new LinkedHashMap()
-  result.put('perf', [])
-  result.put('alt', [])
-  result.put('perfGVP', '')
-  result.put('parent', '')
-  graph_out = ModelFactory.createDefaultModel()
   predicates.each{ x->
     pluck(tdb.listStatements(subject, x, null), result)
   }
@@ -68,7 +57,6 @@ def innerQuery(subject) {
 
 def runQuery(concept) {
   // run SPARQL for this concept
-  // writes out multiple <5MB batch files
   query = QueryFactory.create(prefix + """
     SELECT ?subject WHERE {
       ?subject rdf:type <${concept}>.
