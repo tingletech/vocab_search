@@ -30,16 +30,18 @@ def pluck(statements, out) {
   // no return value; add statements to new_graph
   for (x in statements) {
     obj = x.getObject()
+    predicate = x.getPredicate().toString()
+    key = predicate.substring(predicate.lastIndexOf('#') + 1)
     // new_graph.add(x)
     // look deeper
     if (obj in org.apache.jena.rdf.model.impl.LiteralImpl) {
-      out[x.getPredicate()] = obj
+      out[key] = obj
     } else if (obj in org.apache.jena.rdf.model.impl.ResourceImpl) {
-      out[x.getPredicate()] = []
+      out[key] = []
       sub_predicates.each{ xx->
         deeper = tdb.listStatements(obj, xx, null)
         deeper.each { y ->
-          out[x.getPredicate()].push(y.getObject())
+          out[key].push(y.getObject())
         }
       }
     }
